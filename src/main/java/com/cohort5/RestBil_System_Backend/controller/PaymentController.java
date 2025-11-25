@@ -7,6 +7,7 @@ import com.cohort5.RestBil_System_Backend.Model.User;
 import com.cohort5.RestBil_System_Backend.service.PaymentManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -45,7 +46,7 @@ public class PaymentController {
         );
     }
 
-    @DeleteMapping("/{paymentId}")
+   /* @DeleteMapping("/{paymentId}")
     public ResponseEntity<Void> deletePayment(@PathVariable Long paymentId) {
         paymentManager.deletePayment(paymentId);
         return ResponseEntity.noContent().build();
@@ -66,6 +67,23 @@ public class PaymentController {
                 cashierName
         );
 
+        return ResponseEntity.noContent().build();
+    } */
+
+    // THIS IS THE ONLY DELETE/CANCEL ENDPOINT YOU NEED NOW
+    @DeleteMapping("/{paymentId}")
+    public ResponseEntity<Void> cancelPayment(
+            @PathVariable Long billId,
+            @PathVariable Long paymentId,
+            @RequestBody CancelPaymentRequest request,
+            Authentication authentication) {  // Get logged-in user
+
+        String cashierName = "Cashier"; // fallback
+        if (authentication != null && authentication.getPrincipal() instanceof User user) {
+            cashierName = user.getUsername();
+        }
+
+        paymentManager.cancelPayment(paymentId, request.reason(), cashierName);
         return ResponseEntity.noContent().build();
     }
 }
