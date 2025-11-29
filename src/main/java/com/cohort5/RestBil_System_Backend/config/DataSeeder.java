@@ -1,13 +1,15 @@
 package com.cohort5.RestBil_System_Backend.config;
 
 import com.cohort5.RestBil_System_Backend.Model.MenuItem;
+import com.cohort5.RestBil_System_Backend.Model.Role;
 import com.cohort5.RestBil_System_Backend.Repository.MenuItemRepository;
+import com.cohort5.RestBil_System_Backend.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
 /**
- * Seeds initial menu items into the database on application startup
+ * Seeds initial menu items and owner user into the database on application startup
  */
 @Component
 public class DataSeeder implements CommandLineRunner {
@@ -15,10 +17,17 @@ public class DataSeeder implements CommandLineRunner {
     @Autowired
     private MenuItemRepository menuItemRepository;
 
+    @Autowired
+    private UserService userService;
+
     @Override
     public void run(String... args) throws Exception {
         if (menuItemRepository.count() == 0) {
             seedMenuItems();
+        }
+        
+        if (!userService.ownerExists()) {
+            seedOwner();
         }
     }
 
@@ -46,5 +55,10 @@ public class DataSeeder implements CommandLineRunner {
         }
 
         System.out.println("✓ Seeded 15 menu items successfully!");
+    }
+
+    private void seedOwner() {
+        userService.createUser("owner", "owner123", Role.OWNER);
+        System.out.println("✓ Seeded owner user successfully! (username: owner, password: owner123)");
     }
 }

@@ -1,44 +1,79 @@
 package com.cohort5.RestBil_System_Backend.controller;
 
+import com.cohort5.RestBil_System_Backend.Model.Role;
+import com.cohort5.RestBil_System_Backend.Model.User;
+import com.cohort5.RestBil_System_Backend.payload.JwtResponse;
 import com.cohort5.RestBil_System_Backend.payload.LoginRequest;
+import com.cohort5.RestBil_System_Backend.payload.RegisterRequest;
+import com.cohort5.RestBil_System_Backend.security.JwtUtil;
+import com.cohort5.RestBil_System_Backend.service.UserService;
+import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.userdetails.User;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    // (Autowired dependencies: UserService, AuthenticationManager, JwtUtils)
+    @Autowired
+    private UserService userService;
+
+    @Autowired
+    private AuthenticationManager authenticationManager;
+
+    @Autowired
+    private JwtUtil jwtUtil;
 
     @PostMapping("/login")
-    public ResponseEntity<?> authenticateUser(@RequestBody LoginRequest loginRequest) {
-        // 1. Authenticate user credentials
-        // 2. Generate JWT
-        // 3. Return JWT token and user role
-        // Example: return ResponseEntity.ok(new JwtResponse(jwt, user.getRole().name()));
-        return null; // Placeholder
-    }
+    public ResponseEntity<?> authenticateUser(@Valid @RequestBody LoginRequest loginRequest) {
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(
+                    loginRequest.getUsername(),
+                    loginRequest.getPassword()
+                )
+            );
 
-    @PostMapping("/register/owner")
-    public ResponseEntity<?> registerOwner(@RequestBody User user) {
-        // 1. Check if an Owner already exists (optional, for first-time setup)
-        // 2. Encode password
-        // 3. Set user.setRole(Role.OWNER);
-        // 4. Save user
-        return ResponseEntity.ok("Owner registered successfully!");
-    }
+            UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+            User user = userService.findByUsername(userDetails.getUsername());
+            
+            String jwt = jwtUtil.generateToken(userDetails, user.getRole().name());
 
+            return ResponseEntity.ok(new JwtResponse(jwt, user.getUsername(), user.getRole().name()));
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", "Invalid username or password");
+            return ResponseEntity.badRequest().body(error);
+        }
+    }
 
     @PostMapping("/register/cashier")
-    @PreAuthorize("hasAuthority('OWNER')") // Spring Security enforces this role check
-    public ResponseEntity<?> registerCashier(@RequestBody User user) {
+    @PreAuthorize("hasAuthority('OWNER')")
+    public ResponseEntity<?> registerCashier(@Valid @RequestBody RegisterRequest registerRequest) {
+        try {
+            User cashier = userService.createUser(
+                registerRequest.getUsername(),
+                registerRequest.getPassword(),
+                Role.CASHIER
+            );
 
-        return ResponseEntity.ok("Cashier registered successfully!");
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Cashier registered successfully!");
+            response.put("username", cashier.getUsername());
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            Map<String, String> error = new HashMap<>();
+            error.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(error);
+        }
     }
 }
